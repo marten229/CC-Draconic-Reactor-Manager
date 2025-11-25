@@ -176,24 +176,38 @@ function reac_utils.adjustReactorTempAndField()
 
     local fieldPct = (i.fieldStrength / i.maxFieldStrength)
     local targetField = cfg.reactor.defaultField
-    local saturation = i.energySaturation / i.maxEnergySaturation
+    
+    -- Safety Check
+    local saturation = 0
+    if i.maxEnergySaturation > 0 then
+        saturation = i.energySaturation / i.maxEnergySaturation
+    end
+
     local inflow = 0
+    local baseDrain = i.fieldDrainRate or 100000 
+
+    local error = targetField - fieldPct 
+    local correction = error * 50000000 
+    
+    inflow = baseDrain + correction
+
+    if inflow < 0 then inflow = 0 end
+    if inflow > cfg.reactor.chargeInflow then inflow = cfg.reactor.chargeInflow end
+
+    if fieldPct < 0.25 then inflow = cfg.reactor.chargeInflow end
+
     local outflow = 0
 
-    -- Maintain field
-    if fieldPct < targetField then
-        inflow = cfg.reactor.chargeInflow
-    else
-        inflow = 0
-    end
-
-    -- Manage heat
     if i.temperature > cfg.reactor.defaultTemp then
-        outflow = math.min(cfg.reactor.maxOutflow, (i.temperature - cfg.reactor.defaultTemp) * 2000)
+        local tempDiff = i.temperature - cfg.reactor.defaultTemp
+        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 5000) 
     end
 
-    if saturation > 0.4 then
-         outflow = math.max(outflow, cfg.reactor.maxOutflow * 0.5) 
+    if saturation > 0.5 then
+        local satExcess = (saturation - 0.5) * 2
+        local satOutflow = satExcess * cfg.reactor.maxOutflow
+        
+        outflow = math.max(outflow, satOutflow)
     end
 
     if reac_utils.gateIn then reac_utils.gateIn.setFlowOverride(inflow) end
