@@ -21,7 +21,7 @@ Expected modem labels:
 local cfg = require("config")
 local p = cfg.peripherals
 local reac_utils = {}
-
+local isBurning = false
 ------------------------------------------------------------
 -- PERIPHERAL OBJECTS (declared global to module)
 ------------------------------------------------------------
@@ -176,59 +176,64 @@ function reac_utils.adjustReactorTempAndField()
 
     local fieldPct = (i.fieldStrength / i.maxFieldStrength)
     local targetField = cfg.reactor.defaultField
-    
     local saturation = 0
     if i.maxEnergySaturation > 0 then
         saturation = i.energySaturation / i.maxEnergySaturation
     end
+    
+    if isBurning then
+        if fieldPct < 0.15 or saturation < 0.10 or i.temperature >= cfg.reactor.defaultTemp then
+            isBurning = false
+        end
+    else
+        if fieldPct > 0.40 and saturation > 0.30 and i.temperature < cfg.reactor.defaultTemp then
+            isBurning = true
+        end
+    end
+
+    local outflow = 0
+    
+    if i.temperature > cfg.reactor.defaultTemp then
+        local diff = i.temperature - cfg.reactor.defaultTemp
+        outflow = diff * 20000
+    elseif isBurning then
+        local diff = cfg.reactor.defaultTemp - i.temperature
+        local demand = diff * 50000 
+        
+        outflow = math.min(demand, cfg.reactor.maxOutflow * 0.95)
+    else
+        outflow = 0
+    end
+
+    if saturation > 0.90 then
+        local excess = (saturation - 0.90) * 10
+        local safeDump = excess * cfg.reactor.maxOutflow
+        if fieldPct > 0.30 then outflow = math.max(outflow, safeDump) end
+    end
+
     local inflow = 0
     local baseDrain = i.fieldDrainRate or 100000
-    local error = targetField - fieldPct
-    local correction = error * 80000000 
     
-    inflow = baseDrain + correction
+    if outflow > 1000000 then
+        inflow = cfg.reactor.chargeInflow 
+    else
+        local err = targetField - fieldPct
+        inflow = baseDrain + (err * 60000000)
+    end
+    
+    if fieldPct < 0.30 then inflow = cfg.reactor.chargeInflow end
 
     if inflow < 0 then inflow = 0 end
     if inflow > cfg.reactor.chargeInflow then inflow = cfg.reactor.chargeInflow end
-    if fieldPct < 0.20 then inflow = cfg.reactor.chargeInflow end
 
-    local outflow = 0
-    local targetTemp = cfg.reactor.defaultTemp
-
-    if i.temperature > targetTemp then
-        local tempDiff = i.temperature - targetTemp
-        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 20000) 
-    
-    elseif i.temperature < targetTemp then
-         local tempDiff = targetTemp - i.temperature
-         
-         local heatDemand = tempDiff * 50000 
-         
-         heatDemand = math.min(heatDemand, cfg.reactor.maxOutflow * 0.95)
-         local fieldSafety = 1.0
-         if fieldPct < 0.20 then 
-             fieldSafety = 0.0
-         elseif fieldPct < 0.25 then
-             fieldSafety = (fieldPct - 0.20) * 20
-         end
-         local satSafety = 1.0
-         if saturation < 0.10 then 
-             satSafety = 0.0 
-         elseif saturation < 0.15 then
-             satSafety = (saturation - 0.10) * 20
-         end
-         outflow = heatDemand * fieldSafety * satSafety
-    end
-    if saturation > 0.90 then
-        local satExcess = (saturation - 0.90) * 10
-        local satOutflow = satExcess * cfg.reactor.maxOutflow
-        -- Auch beim Ablassen: Schild-Schutz hat Vorrang
-        if fieldPct < 0.20 then satOutflow = 0 end
-        
-        outflow = math.max(outflow, satOutflow)
-    end
     if reac_utils.gateIn then reac_utils.gateIn.setFlowOverride(inflow) end
     if reac_utils.gateOut then reac_utils.gateOut.setFlowOverride(outflow) end
+end
+
+function reac_utils.handleReactorStopping()
+    reac_utils.gateIn.setFlowOverride(0)
+    reac_utils.gateOut.setFlowOverride(0)
+    isBurning = false
 end
 
 ------------------------------------------------------------
