@@ -163,6 +163,7 @@ function reac_utils.adjustReactorTempAndField()
 
     local fieldPct = (i.fieldStrength / i.maxFieldStrength)
     local targetField = cfg.reactor.defaultField
+    local saturation = i.energySaturation / i.maxEnergySaturation
     local inflow = 0
     local outflow = 0
 
@@ -176,6 +177,10 @@ function reac_utils.adjustReactorTempAndField()
     -- Manage heat
     if i.temperature > cfg.reactor.defaultTemp then
         outflow = math.min(cfg.reactor.maxOutflow, (i.temperature - cfg.reactor.defaultTemp) * 2000)
+    end
+
+    if saturation > 0.4 then
+         outflow = math.max(outflow, cfg.reactor.maxOutflow * 0.5) 
     end
 
     if reac_utils.gateIn then reac_utils.gateIn.setFlowOverride(inflow) end
