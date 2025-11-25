@@ -143,7 +143,7 @@ function reac_utils.checkFuelAndChaos()
         return false
     end
 
-    if info.energySaturation >= info.maxEnergySaturation then
+    if info.status ~= "cold" and info.energySaturation >= info.maxEnergySaturation then
         logError("Chaos energy buffer full — shutting down to prevent overload.")
         reac_utils.failSafeShutdown()
         return false
