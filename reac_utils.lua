@@ -176,42 +176,55 @@ function reac_utils.adjustReactorTempAndField()
 
     local fieldPct = (i.fieldStrength / i.maxFieldStrength)
     local targetField = cfg.reactor.defaultField
-    
-    -- Safety Check
     local saturation = 0
     if i.maxEnergySaturation > 0 then
         saturation = i.energySaturation / i.maxEnergySaturation
     end
-
+    
     local inflow = 0
-    local baseDrain = i.fieldDrainRate or 100000 
-
-    local error = targetField - fieldPct 
+    local baseDrain = i.fieldDrainRate or 100000
+    local error = targetField - fieldPct
     local correction = error * 50000000 
     
     inflow = baseDrain + correction
 
     if inflow < 0 then inflow = 0 end
     if inflow > cfg.reactor.chargeInflow then inflow = cfg.reactor.chargeInflow end
-
-    if fieldPct < 0.25 then inflow = cfg.reactor.chargeInflow end
+    
+    if fieldPct < 0.40 then inflow = cfg.reactor.chargeInflow end
 
     local outflow = 0
     local targetTemp = cfg.reactor.defaultTemp
 
     if i.temperature > targetTemp then
         local tempDiff = i.temperature - targetTemp
-        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 20000) 
-    elseif i.temperature < targetTemp and fieldPct > 0.3 then
+        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 10000) 
+    
+    elseif i.temperature < targetTemp then
          local tempDiff = targetTemp - i.temperature
-         local heatLoad = tempDiff * 2000
-         heatLoad = math.min(heatLoad, cfg.reactor.maxOutflow * 0.6)
-         outflow = math.max(outflow, heatLoad)
+         
+         local heatDemand = tempDiff * 1000
+         local safetyFactor = 0
+         
+         if fieldPct > 0.60 then
+             safetyFactor = 1.0
+         elseif fieldPct > 0.40 then
+             safetyFactor = (fieldPct - 0.40) * 5
+         else
+             safetyFactor = 0
+         end
+
+         outflow = heatDemand * safetyFactor
+         
+         outflow = math.min(outflow, cfg.reactor.maxOutflow * 0.5)
     end
 
     if saturation > 0.5 then
         local satExcess = (saturation - 0.5) * 2 
         local satOutflow = satExcess * cfg.reactor.maxOutflow
+        
+        if fieldPct < 0.30 then satOutflow = 0 end
+        
         outflow = math.max(outflow, satOutflow)
     end
 
