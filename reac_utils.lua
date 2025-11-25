@@ -136,6 +136,10 @@ function reac_utils.checkFuelAndChaos()
     local info = reac_utils.reactor.getReactorInfo()
     if not info then return false end
 
+    if info.status == "cold" then
+        return true
+    end
+
     local fuelLeft = 1.0 - (info.fuelConversion / info.maxFuelConversion)
     if fuelLeft <= 0 then
         logError("Reactor has no fuel! Insert fuel before startup.")
@@ -143,12 +147,16 @@ function reac_utils.checkFuelAndChaos()
         return false
     end
 
-    if info.status ~= "cold" and info.energySaturation >= info.maxEnergySaturation then
-        logError("Chaos energy buffer full — shutting down to prevent overload.")
-        reac_utils.failSafeShutdown()
-        return false
-    elseif info.energySaturation >= info.maxEnergySaturation * 0.95 then
-        logError("Warning: Chaos storage nearing full capacity.")
+    if info.maxEnergySaturation and info.maxEnergySaturation > 0 then
+        if info.energySaturation >= info.maxEnergySaturation then
+            logError("Chaos buffer full -> Shutdown.")
+            reac_utils.failSafeShutdown()
+            return false
+        elseif info.energySaturation >= info.maxEnergySaturation * 0.95 then
+            if info.status == "running" or info.status == "online" then
+                logError("Warning: Chaos storage nearing full capacity.")
+            end
+        end
     end
 
     return true
