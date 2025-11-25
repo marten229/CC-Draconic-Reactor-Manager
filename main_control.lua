@@ -72,7 +72,6 @@ local function mainLoop()
         ----------------------------------------------------
         safeRun(reac_utils.checkReactorStatus, "checkReactorStatus")
         local status = reac_utils.info.status or "unknown"
-        print("Status: " .. tostring(reac_utils.info.status)) -- Debug
         ----------------------------------------------------
         -- SAFETY CHECKS: Fuel & Chaos Storage
         ----------------------------------------------------

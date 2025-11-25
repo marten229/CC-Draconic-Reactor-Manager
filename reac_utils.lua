@@ -192,38 +192,39 @@ function reac_utils.adjustReactorTempAndField()
     if inflow > cfg.reactor.chargeInflow then inflow = cfg.reactor.chargeInflow end
     
     if fieldPct < 0.20 then inflow = cfg.reactor.chargeInflow end
-
     local outflow = 0
     local targetTemp = cfg.reactor.defaultTemp
 
     if i.temperature > targetTemp then
         local tempDiff = i.temperature - targetTemp
-        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 20000) 
-    
+        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 10000)
     elseif i.temperature < targetTemp then
          local tempDiff = targetTemp - i.temperature
          
-         local heatDemand = tempDiff * 10000
-         
-         local safetyFactor = 1.0
+         local heatDemand = tempDiff * 5000
 
-         if fieldPct >= 0.45 then
-             safetyFactor = 1.0
-         elseif fieldPct > 0.25 then
-             safetyFactor = (fieldPct - 0.25) * 5
-         else
-             safetyFactor = 0
+         local fieldSafety = 1.0
+         if fieldPct < 0.30 then fieldSafety = 0
+         elseif fieldPct < 0.50 then fieldSafety = (fieldPct - 0.30) * 5
          end
 
-         outflow = heatDemand * safetyFactor
-         
-         outflow = math.min(outflow, cfg.reactor.maxOutflow * 0.90)
+         local satSafety = 1.0
+         if saturation < 0.15 then 
+             satSafety = 0
+         elseif saturation < 0.50 then 
+             satSafety = (saturation - 0.15) * 2.8 
+         end
+
+         outflow = heatDemand * fieldSafety * satSafety
+         outflow = math.min(outflow, cfg.reactor.maxOutflow * 0.60)
     end
 
-    if saturation > 0.5 then
-        local satExcess = (saturation - 0.5) * 2 
+    if saturation > 0.8 then
+        local satExcess = (saturation - 0.8) * 5
         local satOutflow = satExcess * cfg.reactor.maxOutflow
-        if fieldPct < 0.30 then satOutflow = 0 end
+        
+        if fieldPct < 0.25 then satOutflow = 0 end
+        
         outflow = math.max(outflow, satOutflow)
     end
 
