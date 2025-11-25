@@ -180,7 +180,7 @@ function reac_utils.adjustReactorTempAndField()
     if i.maxEnergySaturation > 0 then
         saturation = i.energySaturation / i.maxEnergySaturation
     end
-    
+
     local inflow = 0
     local baseDrain = i.fieldDrainRate or 100000
     local error = targetField - fieldPct
@@ -191,40 +191,39 @@ function reac_utils.adjustReactorTempAndField()
     if inflow < 0 then inflow = 0 end
     if inflow > cfg.reactor.chargeInflow then inflow = cfg.reactor.chargeInflow end
     
-    if fieldPct < 0.40 then inflow = cfg.reactor.chargeInflow end
+    if fieldPct < 0.20 then inflow = cfg.reactor.chargeInflow end
 
     local outflow = 0
     local targetTemp = cfg.reactor.defaultTemp
 
     if i.temperature > targetTemp then
         local tempDiff = i.temperature - targetTemp
-        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 10000) 
+        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 20000) 
     
     elseif i.temperature < targetTemp then
          local tempDiff = targetTemp - i.temperature
          
-         local heatDemand = tempDiff * 1000
-         local safetyFactor = 0
+         local heatDemand = tempDiff * 10000
          
-         if fieldPct > 0.60 then
+         local safetyFactor = 1.0
+
+         if fieldPct >= 0.45 then
              safetyFactor = 1.0
-         elseif fieldPct > 0.40 then
-             safetyFactor = (fieldPct - 0.40) * 5
+         elseif fieldPct > 0.25 then
+             safetyFactor = (fieldPct - 0.25) * 5
          else
              safetyFactor = 0
          end
 
          outflow = heatDemand * safetyFactor
          
-         outflow = math.min(outflow, cfg.reactor.maxOutflow * 0.5)
+         outflow = math.min(outflow, cfg.reactor.maxOutflow * 0.90)
     end
 
     if saturation > 0.5 then
         local satExcess = (saturation - 0.5) * 2 
         local satOutflow = satExcess * cfg.reactor.maxOutflow
-        
         if fieldPct < 0.30 then satOutflow = 0 end
-        
         outflow = math.max(outflow, satOutflow)
     end
 
