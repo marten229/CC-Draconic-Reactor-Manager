@@ -21,7 +21,6 @@ Expected modem labels:
 local cfg = require("config")
 local p = cfg.peripherals
 local reac_utils = {}
-local currentRampOutflow = 0
 
 ------------------------------------------------------------
 -- PERIPHERAL OBJECTS (declared global to module)
@@ -81,8 +80,6 @@ function reac_utils.setup()
         reac_utils.gateOut.setOverrideEnabled(true)
         reac_utils.gateOut.setFlowOverride(0)
     end
-
-    currentRampOutflow = 0
 
     print("[SUCCESS] Reactor peripherals initialized successfully.")
 end
@@ -184,39 +181,54 @@ function reac_utils.adjustReactorTempAndField()
     if i.maxEnergySaturation > 0 then
         saturation = i.energySaturation / i.maxEnergySaturation
     end
-
     local inflow = 0
     local baseDrain = i.fieldDrainRate or 100000
-    local err = targetField - fieldPct
-    inflow = baseDrain + (err * 50000000)
+    local error = targetField - fieldPct
+    local correction = error * 80000000 
     
-    if fieldPct < 0.30 then inflow = cfg.reactor.chargeInflow end
-    if inflow > cfg.reactor.chargeInflow then inflow = cfg.reactor.chargeInflow end
+    inflow = baseDrain + correction
+
     if inflow < 0 then inflow = 0 end
+    if inflow > cfg.reactor.chargeInflow then inflow = cfg.reactor.chargeInflow end
+    if fieldPct < 0.20 then inflow = cfg.reactor.chargeInflow end
 
+    local outflow = 0
     local targetTemp = cfg.reactor.defaultTemp
-    if fieldPct < 0.20 then
-        currentRampOutflow = 0
-    elseif saturation < 0.15 then
-        currentRampOutflow = 0
-    elseif i.temperature > targetTemp then
-        local diff = i.temperature - targetTemp
-        currentRampOutflow = diff * 20000
-    else     
-        if saturation > 0.40 and fieldPct > 0.40 then
-            currentRampOutflow = currentRampOutflow + 50000
-        elseif saturation < 0.40 then
-            currentRampOutflow = currentRampOutflow - 200000
-        elseif fieldPct < 0.40 then
-            currentRampOutflow = currentRampOutflow - 200000
-        end
-    end
 
-    if currentRampOutflow < 0 then currentRampOutflow = 0 end
-    if currentRampOutflow > cfg.reactor.maxOutflow then currentRampOutflow = cfg.reactor.maxOutflow end
+    if i.temperature > targetTemp then
+        local tempDiff = i.temperature - targetTemp
+        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 20000) 
     
+    elseif i.temperature < targetTemp then
+         local tempDiff = targetTemp - i.temperature
+         
+         local heatDemand = tempDiff * 50000 
+         
+         heatDemand = math.min(heatDemand, cfg.reactor.maxOutflow * 0.95)
+         local fieldSafety = 1.0
+         if fieldPct < 0.20 then 
+             fieldSafety = 0.0
+         elseif fieldPct < 0.25 then
+             fieldSafety = (fieldPct - 0.20) * 20
+         end
+         local satSafety = 1.0
+         if saturation < 0.10 then 
+             satSafety = 0.0 
+         elseif saturation < 0.15 then
+             satSafety = (saturation - 0.10) * 20
+         end
+         outflow = heatDemand * fieldSafety * satSafety
+    end
+    if saturation > 0.90 then
+        local satExcess = (saturation - 0.90) * 10
+        local satOutflow = satExcess * cfg.reactor.maxOutflow
+        -- Auch beim Ablassen: Schild-Schutz hat Vorrang
+        if fieldPct < 0.20 then satOutflow = 0 end
+        
+        outflow = math.max(outflow, satOutflow)
+    end
     if reac_utils.gateIn then reac_utils.gateIn.setFlowOverride(inflow) end
-    if reac_utils.gateOut then reac_utils.gateOut.setFlowOverride(currentRampOutflow) end
+    if reac_utils.gateOut then reac_utils.gateOut.setFlowOverride(outflow) end
 end
 
 ------------------------------------------------------------
@@ -225,7 +237,6 @@ end
 function reac_utils.handleReactorStopping()
     reac_utils.gateIn.setFlowOverride(0)
     reac_utils.gateOut.setFlowOverride(0)
-    currentRampOutflow = 0
 end
 
 return reac_utils

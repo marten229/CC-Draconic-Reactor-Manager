@@ -151,7 +151,7 @@ local function mainLoop()
                 "stat_utils.logReactorStats")
 
         ::continue::
-        sleep(0.2) -- Main tick rate (~5 cycles/sec)
+        sleep(0.05) -- Main tick rate (~20 cycles/sec)
     end
 end
 
