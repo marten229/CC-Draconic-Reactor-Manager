@@ -107,6 +107,11 @@ end
 function reac_utils.isEmergency()
     local i = reac_utils.info
     if not i or not i.temperature then return false end
+
+    if i.status == "cold" or i.status == "offline" or i.status == "warming_up" or i.status == "charging" then 
+        return false 
+    end
+
     local fieldPct = (i.fieldStrength / i.maxFieldStrength)
     local fuelPct  = 1.0 - (i.fuelConversion / i.maxFuelConversion)
 
