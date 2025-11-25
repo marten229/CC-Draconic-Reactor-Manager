@@ -197,16 +197,21 @@ function reac_utils.adjustReactorTempAndField()
     if fieldPct < 0.25 then inflow = cfg.reactor.chargeInflow end
 
     local outflow = 0
+    local targetTemp = cfg.reactor.defaultTemp
 
-    if i.temperature > cfg.reactor.defaultTemp then
-        local tempDiff = i.temperature - cfg.reactor.defaultTemp
-        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 5000) 
+    if i.temperature > targetTemp then
+        local tempDiff = i.temperature - targetTemp
+        outflow = math.min(cfg.reactor.maxOutflow, tempDiff * 20000) 
+    elseif i.temperature < targetTemp and fieldPct > 0.3 then
+         local tempDiff = targetTemp - i.temperature
+         local heatLoad = tempDiff * 2000
+         heatLoad = math.min(heatLoad, cfg.reactor.maxOutflow * 0.6)
+         outflow = math.max(outflow, heatLoad)
     end
 
     if saturation > 0.5 then
-        local satExcess = (saturation - 0.5) * 2
+        local satExcess = (saturation - 0.5) * 2 
         local satOutflow = satExcess * cfg.reactor.maxOutflow
-        
         outflow = math.max(outflow, satOutflow)
     end
 
