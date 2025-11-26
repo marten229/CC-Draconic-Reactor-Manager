@@ -127,6 +127,7 @@ local function mainLoop()
                 safeRun(reac_utils.reactor.stopReactor, "stopReactor")
                 logEvent("Manual reactor stop requested.")
             end
+            safeRun(reac_utils.sampleEnergyRate, "sampleEnergyRate")
             safeRun(reac_utils.adjustReactorTempAndField, "adjustReactorTempAndField")
         ----------------------------------------------------
         -- STOPPING / COOLING DOWN
