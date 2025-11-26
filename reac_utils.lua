@@ -230,12 +230,6 @@ function reac_utils.adjustReactorTempAndField()
     if reac_utils.gateOut then reac_utils.gateOut.setFlowOverride(outflow) end
 end
 
-function reac_utils.handleReactorStopping()
-    reac_utils.gateIn.setFlowOverride(0)
-    reac_utils.gateOut.setFlowOverride(0)
-    isBurning = false
-end
-
 ------------------------------------------------------------
 -- HANDLE STOPPING
 ------------------------------------------------------------
