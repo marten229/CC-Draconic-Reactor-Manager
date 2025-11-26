@@ -20,7 +20,7 @@ Features:
 ------------------------------------------------------------
 -- CONFIGURATION
 ------------------------------------------------------------
-local repoBase = "https://raw.githubusercontent.com/marten229/CC-Draconic-Reactor-Manager/main/"
+local repoBase = "https://raw.githubusercontent.com/marten229/CC-Draconic-Reactor-Manager/develop/"
 local targetDir = "/"  -- Change to custom path if desired
 
 local files = {
